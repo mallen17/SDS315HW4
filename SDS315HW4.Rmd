@@ -1,0 +1,161 @@
+---
+title: "SDS315HW4"
+author: "Max Allen"
+date: "2024-02-16"
+output: html_document
+---
+
+Max Allen
+mca2773
+Github -> https://github.com/mallen17/SDS315HW3.git
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 1
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(mosaic)
+gas = read_csv("gasprices.csv")
+```
+
+I will be investigating multiple theories as to why gas prices differ from each other and seeing whether they have any merit. I have a sample of Austin gas stations and their prices at the same time along with some helpful variables to test connections.
+
+### Theory A
+
+The first theory asks the question of whether the absence of another gas station in sight leads to higher gas prices. This would make sense as without competition in the area, you hold a miniature monopoly on gas for the area and can choose your rate more freely.
+
+```{r echo=FALSE}
+boot_comp = do(10000)*diffmean(Price ~ Competitors, data = resample(gas))
+confint(boot_comp, level=.95)
+```
+
+After bootstrapping our data, I can say with 95% confidence that the difference in price between gas stations with competitors in sight vs. those without is between -.055 and .008 (about -5 cents per gallon to 1 cent per gallon). This is not a statistically significant difference because it does not say that it for sure goes one way or the other. So I have to conclude that the competition theory does not explain the difference in gas prices.
+
+### Theory B
+
+The second theory asks whether richer areas' gas prices are naturally larger than poorer areas. This is very plausible as you often see price markups in areas with higher costs of living.
+
+```{r echo=FALSE}
+boot_income = do(10000)*lm(Price ~ Income, data=resample(gas))
+confint(boot_income, level=.95)[2,]
+```
+
+The scope for this interval is much much smaller than the last one. The slope of the price by income relationship is between .00000066 and .0000018, said with 95% confidence. Although this is an insanely small relationship between income and price, it is still statistically significant. I would conclude that income is hardly a contributing factor in the difference in gas prices, but should let it be noted that it does have an effect.
+
+### Theory C
+
+Theory C is that gas prices are affected by whether there is a stop light located next to it.
+
+```{r echo=FALSE}
+boot_stop = do(10000)*diffmean(Price ~ Stoplight, data=resample(gas))
+confint(boot_stop)
+```
+
+It appears that stoplights have no real effect on gas prices as I can say with 95% confidence that the average price difference per gallon between stoplights and no stoplights is (-.039, .030). This is not statistically significant or really of any value at all as it is centered tightly around 0. This leads me to believe that location next to a stoplight does not have any effect on the price of gas.
+
+### Theory D
+
+Theory D is similar to those before, but this time it questions whether highway access make gas prices change. This seems to have some relevance as a highway is likely the most common place one would need to refill.
+
+```{r echo=FALSE}
+boot_highway = do(10000)*diffmean(Price ~ Highway, data=resample(gas))
+confint(boot_highway)
+```
+
+The difference in average price between gas stations with highway access and those without is between (.010, .081). This is a difference between 1 and 8 cents for every gallon on highway accessible roads. This is actually a significant difference and leads me to the conclusion that highway access does play a part in the difference of gas prices.
+
+### Theory E
+
+The final theory questions whether Shell gas stations simply charge more than non-Shell stations.
+
+```{r echo=FALSE}
+shellgas = mutate(gas, isShell = ifelse(Brand == "Shell", "Y", "N"))
+boot_shell = do(10000)*diffmean(Price ~ isShell, data=resample(shellgas))
+confint(boot_shell)
+```
+
+There does not appear to be a statistically significant difference between any certain brands. A 95% confidence interval of the average price difference between shell and non-shell stations is (-.010, .065). While it isn't significant, it does look like Shell stations have maybe 3 cents more per gallon on average however due to our bootstrapping we can't say for certain. I have to deduce that this does not have a significant effect on the difference of gas prices.
+
+# Problem 2
+
+### Part A
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+merc = read_csv("sclass.csv")
+merc2 = merc %>% 
+  filter(year == 2011, trim == "63 AMG")
+boot_merc = do(10000)*mean(resample(merc2$mileage))
+confint(boot_merc)
+```
+
+I can be 95% confident that the average mileage of 2011 S-Class Mercedes with a 63 AMG trim is between 26211.74 and 31772.66.
+
+### Part B
+
+```{r echo=FALSE}
+merc3 = merc %>% 
+  filter(year == 2014, trim == "550") %>% 
+  mutate(isBlack = ifelse(color =="Black", "TRUE", "FALSE"))
+boot_black = do(10000)*prop(resample(merc3$isBlack))
+confint(boot_black)
+```
+
+I can be 95% confident that the proportion of 2014, 550, S-Class Mercedes that are black is between 41.6% and 45.3%.
+
+# Problem 3
+
+### Part A
+
+I want to see if the show "Living with Ed" produces a higher "happy rating" from the survey than "My Name is Earl" or vice versa. I'm using a size 30 sampling distribution to see this where I test if the difference of their means contain 0 in my confidence interval.
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+pilot = read_csv("nbc_pilotsurvey.csv")
+pilotA = pilot %>% 
+  filter(Show == "Living with Ed" | Show == "My Name is Earl")
+boot_happy = do(10000)*diffmean(Q1_Happy ~ Show, data=resample(pilotA))
+confint(boot_happy)
+```
+
+It appears that there is not evidence to prove a difference in happy scores between the two shows as the interval contains 0.
+
+### Part B
+
+I want to see if "The Biggest Loser" or "The Apprentice: Los Angeles" produces a higher "annoyed score" than the other from survey results. Similarly to last question I will run a bootstrap sample to see if 0 lies in the difference.
+
+```{r echo=FALSE}
+pilotB = pilot %>% 
+  filter(Show == "The Biggest Loser" | Show == "The Apprentice: Los Angeles")
+mean(Q1_Annoyed ~ Show, data=pilotB)
+boot_annoyed = do(10000)*diffmean(Q1_Annoyed ~ Show, data=resample(pilotB))
+confint(boot_annoyed)
+```
+
+It looks like "The Apprentice: Los Angeles" has a higher annoyance rate than "The Biggest Loser" with 95% confidence.
+
+### Part C
+
+I want to see what proportion of viewers find "Dancing with the Stars" confusing. I'm going to bootstrap again to see what proportion of responses were 4 or 5 to the confusion question.
+
+```{r echo=FALSE}
+pilotC = pilot %>% 
+  filter(Show == "Dancing with the Stars") %>% 
+  mutate(Confusion = ifelse(Q2_Confusing>=4, "Yes", "No"))
+boot_confused = do(10000)*prop(resample(pilotC$Confusion))
+```
+
+The 95% confidence interval of viewers that find "Dancing with the Stars" confusing is (.039, .116).
+
+# Problem 4
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ebay = read_csv("ebay.csv")
+bootbay = do(10000)*diffmean(rev_ratio ~ adwords_pause, data=resample(ebay))
+confint(bootbay)
+```
+
+I seek to find whether EBay benefits from purchasing ads on Google's search engine. Because they are already so large and relevant, it is likely that their results would be top page already, however, more clicks is always better and I want to see if this is worth paying Google for. I will find the ratio of revenue on a control and test group without the ads and see with a level of confidence if they are significantly different. I'm using a bootstrap sample and taking the difference in means of the ratio by whether or not its the control group. I found that the difference in means between the control group and treatment group is between (-.091, -.014) with 95% confidence. This supports the idea that continuing the ad program on Google has a statistically significant positive impact on revenue. It would be wise to continue buying ads on Google as it appears to make more money than without.
